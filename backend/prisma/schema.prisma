@@ -1,0 +1,59 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "commonjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Prioridade {
+  BAIXA
+  MEDIA
+  ALTA
+}
+
+enum Status {
+  ABERTA
+  EM_ANALISE
+  APROVADA
+  REJEITADA
+}
+
+enum TipoEvento {
+  CRIACAO
+  ALTERACAO_STATUS @map("ALERACAO_STATUS")
+  EXCLUSAO
+}
+
+model Solicitacao {
+  idSolicitacao   Int        @id @default(autoincrement()) @map("id_solicitacao")
+  titulo          String     @db.VarChar(150)
+  descricao       String     @db.Text
+  solicitante     String     @db.VarChar(150)
+  areaSolicitante String     @map("area_solicitante") @db.VarChar(150)
+  prioridade      Prioridade
+  status          Status     @default(ABERTA)
+  dataSolicitacao DateTime   @default(now()) @map("data_solicitacao")
+  dataExclusao    DateTime?  @map("data_exclusao")
+
+  historicos HistoricoSolicitacao[]
+
+  @@map("solicitacao")
+}
+
+model HistoricoSolicitacao {
+  idHistorico    Int        @id @default(autoincrement()) @map("id_historico")
+  idSolicitacao  Int        @map("id_solicitacao")
+  tipoEvento     TipoEvento @map("tipo_evento")
+  statusAnterior Status?    @map("status_anterior")
+  statusNovo     Status?    @map("status_novo")
+  comentario     String?    @db.Text
+  dataEvento     DateTime   @default(now()) @map("data_evento")
+
+  solicitacao Solicitacao @relation(fields: [idSolicitacao], references: [idSolicitacao], onDelete: Restrict)
+
+  @@index([idSolicitacao])
+  @@map("historico_solicitacao")
+}
