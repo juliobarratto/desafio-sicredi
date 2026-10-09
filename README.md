@@ -2,7 +2,7 @@
 
 Protótipo para centralizar solicitações internas, acompanhar seu andamento, preservar o histórico das decisões e disponibilizar indicadores operacionais.
 
-O backend está implementado com NestJS, Prisma e PostgreSQL. O frontend em NextJS será desenvolvido separadamente como próxima etapa de aprendizado.
+A solução é full stack: o backend usa NestJS, Prisma e PostgreSQL, enquanto o frontend usa Next.js, React, Axios e Tailwind CSS.
 
 ## Funcionalidades implementadas
 
@@ -27,6 +27,11 @@ ABERTA -> EM_ANALISE -> APROVADA
 - Tratamento de erros com códigos HTTP adequados.
 - Testes unitários e testes HTTP automatizados.
 - PostgreSQL executado por Docker Compose.
+- Interface responsiva com dashboard, indicadores e gráficos.
+- Listagem visual com pesquisa, filtros, ordenação e paginação.
+- Cadastro, consulta, edição e exclusão de solicitações pelo frontend.
+- Mudança de status e consulta do histórico pelo frontend.
+- Estados visuais de carregamento, erro, lista vazia e nova tentativa.
 
 ## Tecnologias
 
@@ -35,6 +40,8 @@ ABERTA -> EM_ANALISE -> APROVADA
 - Prisma 7
 - PostgreSQL 16
 - Jest e Supertest
+- Next.js 16 e React 19
+- Axios e Tailwind CSS 4
 - Docker Compose
 
 ## Estrutura
@@ -50,18 +57,27 @@ desafio-sicredi/
 |   |   |-- prisma/
 |   |   `-- solicitacoes/
 |   `-- test/
+|-- frontend/
+|   |-- public/
+|   `-- src/
+|       |-- app/
+|       |-- components/
+|       |-- errors/
+|       |-- features/
+|       `-- lib/
 |-- compose.yml
+|-- package.json
 `-- README.md
 ```
 
-O módulo `solicitacoes` concentra o fluxo principal. Os Controllers tratam HTTP, os DTOs validam a entrada e os Services aplicam as regras de negócio e coordenam o Prisma.
+No backend, os Controllers tratam HTTP, os DTOs validam a entrada e os Services aplicam as regras de negócio e coordenam o Prisma. No frontend, `app` define as rotas e layouts, enquanto `features` agrupa componentes, types e services por funcionalidade.
 
 ## Pré-requisitos
 
 - Node.js 22 ou superior.
 - npm 10 ou superior.
 - Docker Desktop com Docker Compose.
-- Portas `3000` e `5433` disponíveis.
+- Portas `3000`, `3001` e `5433` disponíveis.
 
 ## Execução local
 
@@ -108,6 +124,38 @@ npm run start:dev
 ```
 
 A API ficará disponível em `http://localhost:3000`.
+
+### 5. Configurar e iniciar o frontend
+
+Em outro terminal, a partir da raiz do projeto:
+
+```powershell
+cd frontend
+Copy-Item .env.example .env.local
+npm install
+npm run dev
+```
+
+A aplicação ficará disponível em `http://localhost:3001`. O script já fixa essa porta para não disputar a porta 3000 com a API.
+
+Também é possível executar os serviços a partir da raiz, cada um em seu próprio terminal:
+
+```powershell
+npm run dev:backend
+npm run dev:frontend
+```
+
+## Frontend
+
+| Rota | Descrição |
+|---|---|
+| `/dashboard` | Indicadores, distribuição por status e prioridade e solicitações recentes |
+| `/solicitacoes` | Listagem, pesquisa, filtros, ordenação e paginação |
+| `/solicitacoes/nova` | Cadastro de solicitação |
+| `/solicitacoes/:id` | Detalhes, histórico, mudança de status e exclusão |
+| `/solicitacoes/:id/editar` | Edição dos dados cadastrais |
+
+A raiz `/` redireciona para `/dashboard`. As ações disponíveis na página de detalhes acompanham a máquina de estados definida pelo backend.
 
 ## API
 
@@ -252,6 +300,16 @@ npm run test:e2e -- --runInBand
 
 Os testes unitários cobrem regras do Service e agregações do dashboard. Os testes E2E verificam rotas, pipes, DTOs e códigos HTTP com dependências controladas. O fluxo completo também pode ser exercitado contra o PostgreSQL local usando os exemplos da seção de API.
 
+Dentro de `frontend`:
+
+```powershell
+npm run typecheck
+npm run lint
+npm run build
+```
+
+A partir da raiz, os comandos `npm run build`, `npm run lint`, `npm run typecheck`, `npm test` e `npm run test:e2e` encaminham a verificação para o projeto correspondente.
+
 ## Decisões técnicas
 
 ### Exclusão lógica
@@ -331,13 +389,14 @@ O frontend poderia apresentar separadamente o status da solicitação e o status
 
 ## Escopo pendente e limitações
 
-- O frontend NextJS está intencionalmente pendente para uma etapa posterior de aprendizado.
 - Autenticação e autorização ainda não foram implementadas.
 - A integração externa está documentada, mas não implementada.
 - Logs estruturados e observabilidade completa são evoluções futuras.
 - Não há anexos nem notificações.
+- Os testes HTTP usam dependências controladas; ainda não há uma suíte automatizada de integração com PostgreSQL real.
+- O frontend possui validação, lint e build automatizáveis, mas ainda não inclui uma suíte de testes versionada.
 
-Esses itens não impedem a avaliação do backend atual, mas devem ser considerados antes de uma utilização em produção.
+Esses itens não impedem a avaliação do protótipo, mas devem ser considerados antes de uma utilização em produção.
 
 ## Encerramento
 

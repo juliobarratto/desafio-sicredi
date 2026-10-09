@@ -1,0 +1,15 @@
+{
+  "name": "desafio-sicredi",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Gestão de solicitações internas com NestJS e Next.js",
+  "scripts": {
+    "dev:backend": "npm --prefix backend run start:dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix backend run build && npm --prefix frontend run build",
+    "lint": "npm --prefix backend run lint && npm --prefix frontend run lint",
+    "typecheck": "npm --prefix frontend run typecheck",
+    "test": "npm --prefix backend test -- --runInBand",
+    "test:e2e": "npm --prefix backend run test:e2e -- --runInBand"
+  }
+}

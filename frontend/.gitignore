@@ -1,0 +1,52 @@
+# Dependencies
+/node_modules/
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Test output
+/coverage/
+
+# Next.js and production builds
+**/.next/
+/out/
+/build/
+/dist/
+
+# Tool caches
+/.cache/
+/.turbo/
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+next-env.d.ts
+
+# Logs and debug files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+
+# Local environment files and secrets
+.env*
+!.env.example
+
+# Deployment metadata
+/.vercel/
+
+# Editor and operating-system files
+/.idea/
+/.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.pem
