@@ -4,7 +4,7 @@ const apresentacaoStatus: Record<StatusSolicitacao, { nome: string; classe: stri
   ABERTA: { nome: "Aberta", classe: "bg-[#edf3f9] text-[#4d7094]" },
   EM_ANALISE: { nome: "Em análise", classe: "bg-[#fff4df] text-[#97671b]" },
   APROVADA: { nome: "Aprovada", classe: "bg-[#eaf4e9] text-[#38744b]" },
-  REJEITADA: { nome: "Rejeitada", classe: "bg-[#fbeeea] text-[#a05e56]" },
+  REJEITADA: { nome: "Rejeitada", classe: "bg-[#fbeeea] text-[var(--color-danger-muted)]" },
 };
 
 export function StatusBadge({ status }: { status: StatusSolicitacao }) {

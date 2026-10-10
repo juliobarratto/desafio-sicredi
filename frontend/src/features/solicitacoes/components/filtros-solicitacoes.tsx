@@ -11,7 +11,7 @@ export type FiltrosSolicitacoes = Pick<
 
 const statusPermitidos: StatusSolicitacao[] = ["ABERTA", "EM_ANALISE", "APROVADA", "REJEITADA"];
 const prioridadesPermitidas: Prioridade[] = ["BAIXA", "MEDIA", "ALTA"];
-const classeCampo = "mt-2 w-full min-w-0 rounded-md border border-[#dce4d9] bg-white px-3 py-2.5 text-sm";
+const classeCampo = "mt-2 w-full min-w-0 rounded-md border border-[var(--color-border)] bg-white px-3 py-2.5 text-sm";
 
 export function FiltrosSolicitacoes({
   onFiltrar,
@@ -36,7 +36,7 @@ export function FiltrosSolicitacoes({
       aria-label="Filtros de solicitações"
       onSubmit={aplicarFiltros}
       onReset={() => onFiltrar({ ordemData: "desc" })}
-      className="rounded-xl border border-[#e0e6de] bg-white p-5 sm:p-6"
+      className="rounded-xl border border-[var(--color-border)] bg-white p-5 sm:p-6"
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[2fr_1fr_1fr_1fr]">
         <label className="min-w-0 text-xs font-medium">
@@ -71,10 +71,10 @@ export function FiltrosSolicitacoes({
         </label>
       </div>
       <div className="mt-5 flex flex-wrap gap-3">
-        <button type="submit" className="rounded-md bg-[#195b40] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#124b33]">
+        <button type="submit" className="rounded-md bg-[var(--color-primary)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-primary-hover)]">
           Aplicar filtros
         </button>
-        <button type="reset" className="rounded-md border border-[#dce4d9] px-4 py-2.5 text-sm hover:bg-[#f1f5eb]">
+        <button type="reset" className="rounded-md border border-[var(--color-border)] px-4 py-2.5 text-sm hover:bg-[var(--color-soft)]">
           Limpar filtros
         </button>
       </div>

@@ -32,7 +32,7 @@ export function IndicadorCard({
       <h2
         className={
           "flex items-center gap-2 text-xs font-normal " +
-          (destaque ? "text-[#d1e0d4]" : "text-[#738176]")
+          (destaque ? "text-[#d1e0d4]" : "text-[var(--color-muted)]")
         }
       >
         {corMarcador && (
@@ -49,7 +49,7 @@ export function IndicadorCard({
       </p>
 
       {descricao && (
-        <p className={"mt-2 text-[11px] " + (destaque ? "text-[#b9d3c1]" : "text-[#738176]")}>
+        <p className={"mt-2 text-[11px] " + (destaque ? "text-[#b9d3c1]" : "text-[var(--color-muted)]")}>
           {descricao}
         </p>
       )}

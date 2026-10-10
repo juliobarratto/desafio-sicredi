@@ -15,7 +15,8 @@ describe("SolicitacoesService", () => {
     solicitacao: {
       create: jest.fn(),
       findFirst: jest.fn(),
-      update: jest.fn(),
+      findUnique: jest.fn(),
+      updateMany: jest.fn(),
     },
     historicoSolicitacao: {
       create: jest.fn(),
@@ -53,6 +54,7 @@ describe("SolicitacoesService", () => {
 
     service = module.get<SolicitacoesService>(SolicitacoesService);
     jest.clearAllMocks();
+    tx.solicitacao.updateMany.mockResolvedValue({ count: 1 });
   });
 
   it("should be defined", () => {
@@ -94,7 +96,10 @@ describe("SolicitacoesService", () => {
           { areaSolicitante: { contains: "rede", mode: "insensitive" } },
         ]),
       },
-      orderBy: { dataSolicitacao: OrdemData.DESC },
+      orderBy: [
+        { dataSolicitacao: OrdemData.DESC },
+        { idSolicitacao: OrdemData.DESC },
+      ],
       skip: 5,
       take: 5,
     });
@@ -154,8 +159,16 @@ describe("SolicitacoesService", () => {
       BadRequestException,
     );
 
-    prisma.solicitacao.findFirst.mockResolvedValue({ idSolicitacao: 1 });
-    prisma.solicitacao.update.mockResolvedValue({
+    tx.solicitacao.findFirst.mockResolvedValue({
+      idSolicitacao: 1,
+      status: Status.ABERTA,
+      titulo: "Título original",
+      descricao: "Descrição original",
+      solicitante: "Julio",
+      areaSolicitante: "Tecnologia",
+      prioridade: Prioridade.ALTA,
+    });
+    tx.solicitacao.findUnique.mockResolvedValue({
       idSolicitacao: 1,
       titulo: "Título atualizado",
     });
@@ -166,10 +179,48 @@ describe("SolicitacoesService", () => {
       idSolicitacao: 1,
       titulo: "Título atualizado",
     });
-    expect(prisma.solicitacao.update).toHaveBeenCalledWith({
-      where: { idSolicitacao: 1 },
+    expect(tx.solicitacao.updateMany).toHaveBeenCalledWith({
+      where: {
+        idSolicitacao: 1,
+        dataExclusao: null,
+        status: Status.ABERTA,
+        titulo: "Título original",
+        descricao: "Descrição original",
+        solicitante: "Julio",
+        areaSolicitante: "Tecnologia",
+        prioridade: Prioridade.ALTA,
+      },
       data: { titulo: "Título atualizado" },
     });
+  });
+
+  it("bloqueia edição após uma decisão final", async () => {
+    tx.solicitacao.findFirst.mockResolvedValue({
+      idSolicitacao: 1,
+      status: Status.APROVADA,
+    });
+
+    await expect(
+      service.atualizar(1, { titulo: "Título atualizado" }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(tx.solicitacao.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("detecta concorrência durante a edição", async () => {
+    tx.solicitacao.findFirst.mockResolvedValue({
+      idSolicitacao: 1,
+      status: Status.EM_ANALISE,
+      titulo: "Título original",
+      descricao: "Descrição original",
+      solicitante: "Julio",
+      areaSolicitante: "Tecnologia",
+      prioridade: Prioridade.ALTA,
+    });
+    tx.solicitacao.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      service.atualizar(1, { titulo: "Título atualizado" }),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 
   it("altera de ABERTA para EM_ANALISE e registra o histórico", async () => {
@@ -177,7 +228,7 @@ describe("SolicitacoesService", () => {
       idSolicitacao: 1,
       status: Status.ABERTA,
     });
-    tx.solicitacao.update.mockResolvedValue({
+    tx.solicitacao.findUnique.mockResolvedValue({
       idSolicitacao: 1,
       status: Status.EM_ANALISE,
     });
@@ -217,7 +268,7 @@ describe("SolicitacoesService", () => {
         comentario: "   ",
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
-    expect(tx.solicitacao.update).not.toHaveBeenCalled();
+    expect(tx.solicitacao.updateMany).not.toHaveBeenCalled();
     expect(tx.historicoSolicitacao.create).not.toHaveBeenCalled();
   });
 
@@ -226,7 +277,7 @@ describe("SolicitacoesService", () => {
       idSolicitacao: 1,
       status: Status.EM_ANALISE,
     });
-    tx.solicitacao.update.mockResolvedValue({
+    tx.solicitacao.findUnique.mockResolvedValue({
       idSolicitacao: 1,
       status: Status.REJEITADA,
     });
@@ -256,7 +307,7 @@ describe("SolicitacoesService", () => {
     await expect(
       service.alterarStatus(1, { status: Status.EM_ANALISE }),
     ).rejects.toBeInstanceOf(ConflictException);
-    expect(tx.solicitacao.update).not.toHaveBeenCalled();
+    expect(tx.solicitacao.updateMany).not.toHaveBeenCalled();
   });
 
   it("não altera uma solicitação inexistente ou excluída", async () => {
@@ -265,19 +316,40 @@ describe("SolicitacoesService", () => {
     await expect(
       service.alterarStatus(1, { status: Status.EM_ANALISE }),
     ).rejects.toBeInstanceOf(NotFoundException);
-    expect(tx.solicitacao.update).not.toHaveBeenCalled();
+    expect(tx.solicitacao.updateMany).not.toHaveBeenCalled();
   });
 
-  it("faz exclusão lógica e registra o histórico na mesma transação", async () => {
+  it("detecta concorrência sem registrar histórico de status", async () => {
     tx.solicitacao.findFirst.mockResolvedValue({
       idSolicitacao: 1,
       status: Status.EM_ANALISE,
     });
+    tx.solicitacao.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      service.alterarStatus(1, {
+        status: Status.APROVADA,
+        comentario: "Aprovada.",
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(tx.historicoSolicitacao.create).not.toHaveBeenCalled();
+  });
+
+  it("faz exclusão lógica e registra o histórico na mesma transação", async () => {
+    tx.solicitacao.findUnique.mockResolvedValue({
+      idSolicitacao: 1,
+      status: Status.EM_ANALISE,
+      dataExclusao: null,
+    });
 
     await service.excluir(1);
 
-    expect(tx.solicitacao.update).toHaveBeenCalledWith({
-      where: { idSolicitacao: 1 },
+    expect(tx.solicitacao.updateMany).toHaveBeenCalledWith({
+      where: {
+        idSolicitacao: 1,
+        dataExclusao: null,
+        status: Status.EM_ANALISE,
+      },
       data: { dataExclusao: expect.any(Date) },
     });
     expect(tx.historicoSolicitacao.create).toHaveBeenCalledWith({
@@ -288,5 +360,17 @@ describe("SolicitacoesService", () => {
         comentario: "Solicitação excluída logicamente.",
       },
     });
+  });
+
+  it("trata exclusão repetida como idempotente sem duplicar histórico", async () => {
+    tx.solicitacao.findUnique.mockResolvedValue({
+      idSolicitacao: 1,
+      status: Status.EM_ANALISE,
+      dataExclusao: new Date(),
+    });
+
+    await expect(service.excluir(1)).resolves.toBeUndefined();
+    expect(tx.solicitacao.updateMany).not.toHaveBeenCalled();
+    expect(tx.historicoSolicitacao.create).not.toHaveBeenCalled();
   });
 });

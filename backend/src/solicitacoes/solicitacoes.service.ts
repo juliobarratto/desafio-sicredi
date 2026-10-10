@@ -52,9 +52,10 @@ export class SolicitacoesService {
     const [dados, total] = await this.prisma.$transaction([
       this.prisma.solicitacao.findMany({
         where,
-        orderBy: {
-          dataSolicitacao: filtros.ordemData,
-        },
+        orderBy: [
+          { dataSolicitacao: filtros.ordemData },
+          { idSolicitacao: filtros.ordemData },
+        ],
         skip: (filtros.pagina - 1) * filtros.limite,
         take: filtros.limite,
       }),
@@ -124,11 +125,57 @@ export class SolicitacoesService {
       );
     }
 
-    await this.buscarPorId(idSolicitacao);
+    return this.prisma.$transaction(async (tx) => {
+      const solicitacao = await tx.solicitacao.findFirst({
+        where: { idSolicitacao, dataExclusao: null },
+      });
 
-    return this.prisma.solicitacao.update({
-      where: { idSolicitacao },
-      data: dados,
+      if (!solicitacao) {
+        throw new NotFoundException(
+          `Solicitação com ID ${idSolicitacao} não encontrada.`,
+        );
+      }
+
+      if (
+        solicitacao.status === Status.APROVADA ||
+        solicitacao.status === Status.REJEITADA
+      ) {
+        throw new ConflictException(
+          "Solicitações com decisão final não podem ser editadas.",
+        );
+      }
+
+      const resultado = await tx.solicitacao.updateMany({
+        where: {
+          idSolicitacao,
+          dataExclusao: null,
+          status: solicitacao.status,
+          titulo: solicitacao.titulo,
+          descricao: solicitacao.descricao,
+          solicitante: solicitacao.solicitante,
+          areaSolicitante: solicitacao.areaSolicitante,
+          prioridade: solicitacao.prioridade,
+        },
+        data: dados,
+      });
+
+      if (resultado.count !== 1) {
+        throw new ConflictException(
+          "A solicitação foi alterada por outra operação. Atualize os dados e tente novamente.",
+        );
+      }
+
+      const solicitacaoAtualizada = await tx.solicitacao.findUnique({
+        where: { idSolicitacao },
+      });
+
+      if (!solicitacaoAtualizada) {
+        throw new ConflictException(
+          "Não foi possível recuperar a solicitação atualizada.",
+        );
+      }
+
+      return solicitacaoAtualizada;
     });
   }
 
@@ -148,7 +195,7 @@ export class SolicitacoesService {
 
     return this.prisma.historicoSolicitacao.findMany({
       where: { idSolicitacao },
-      orderBy: { dataEvento: "asc" },
+      orderBy: [{ dataEvento: "asc" }, { idHistorico: "asc" }],
     });
   }
 
@@ -197,10 +244,20 @@ export class SolicitacoesService {
         );
       }
 
-      const solicitacaoAtualizada = await tx.solicitacao.update({
-        where: { idSolicitacao },
+      const resultado = await tx.solicitacao.updateMany({
+        where: {
+          idSolicitacao,
+          dataExclusao: null,
+          status: solicitacao.status,
+        },
         data: { status: dados.status },
       });
+
+      if (resultado.count !== 1) {
+        throw new ConflictException(
+          "O status da solicitação foi alterado por outra operação. Atualize os dados e tente novamente.",
+        );
+      }
 
       await tx.historicoSolicitacao.create({
         data: {
@@ -212,17 +269,24 @@ export class SolicitacoesService {
         },
       });
 
+      const solicitacaoAtualizada = await tx.solicitacao.findUnique({
+        where: { idSolicitacao },
+      });
+
+      if (!solicitacaoAtualizada) {
+        throw new ConflictException(
+          "Não foi possível recuperar a solicitação atualizada.",
+        );
+      }
+
       return solicitacaoAtualizada;
     });
   }
 
   async excluir(idSolicitacao: number) {
     return this.prisma.$transaction(async (tx) => {
-      const solicitacao = await tx.solicitacao.findFirst({
-        where: {
-          idSolicitacao,
-          dataExclusao: null,
-        },
+      const solicitacao = await tx.solicitacao.findUnique({
+        where: { idSolicitacao },
       });
 
       if (!solicitacao) {
@@ -231,10 +295,32 @@ export class SolicitacoesService {
         );
       }
 
-      await tx.solicitacao.update({
-        where: { idSolicitacao },
+      if (solicitacao.dataExclusao) {
+        return;
+      }
+
+      const resultado = await tx.solicitacao.updateMany({
+        where: {
+          idSolicitacao,
+          dataExclusao: null,
+          status: solicitacao.status,
+        },
         data: { dataExclusao: new Date() },
       });
+
+      if (resultado.count !== 1) {
+        const solicitacaoAtual = await tx.solicitacao.findUnique({
+          where: { idSolicitacao },
+        });
+
+        if (solicitacaoAtual?.dataExclusao) {
+          return;
+        }
+
+        throw new ConflictException(
+          "A solicitação foi alterada por outra operação. Atualize os dados e tente novamente.",
+        );
+      }
 
       await tx.historicoSolicitacao.create({
         data: {

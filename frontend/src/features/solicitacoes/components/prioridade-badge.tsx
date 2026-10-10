@@ -3,7 +3,7 @@ import type { Prioridade } from "../types/solicitacao";
 const apresentacaoPrioridade: Record<Prioridade, { nome: string; classe: string }> = {
   BAIXA: { nome: "Baixa", classe: "bg-[#f1f5eb] text-[#637c4f]" },
   MEDIA: { nome: "Média", classe: "bg-[#fff4df] text-[#97671b]" },
-  ALTA: { nome: "Alta", classe: "bg-[#fbeeea] text-[#a05e56]" },
+  ALTA: { nome: "Alta", classe: "bg-[#fbeeea] text-[var(--color-danger-muted)]" },
 };
 
 export function PrioridadeBadge({ prioridade }: { prioridade: Prioridade }) {

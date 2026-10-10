@@ -27,6 +27,7 @@ ABERTA -> EM_ANALISE -> APROVADA
 - Tratamento de erros com códigos HTTP adequados.
 - Testes unitários e testes HTTP automatizados.
 - PostgreSQL executado por Docker Compose.
+- Banco, migrations, backend e frontend executáveis juntos por Docker Compose.
 - Interface responsiva com dashboard, indicadores e gráficos.
 - Listagem visual com pesquisa, filtros, ordenação e paginação.
 - Cadastro, consulta, edição e exclusão de solicitações pelo frontend.
@@ -49,6 +50,7 @@ ABERTA -> EM_ANALISE -> APROVADA
 ```text
 desafio-sicredi/
 |-- backend/
+|   |-- Dockerfile
 |   |-- prisma/
 |   |   |-- migrations/
 |   |   `-- schema.prisma
@@ -58,6 +60,7 @@ desafio-sicredi/
 |   |   `-- solicitacoes/
 |   `-- test/
 |-- frontend/
+|   |-- Dockerfile
 |   |-- public/
 |   `-- src/
 |       |-- app/
@@ -74,25 +77,58 @@ No backend, os Controllers tratam HTTP, os DTOs validam a entrada e os Services 
 
 ## Pré-requisitos
 
-- Node.js 22 ou superior.
-- npm 10 ou superior.
-- Docker Desktop com Docker Compose.
+- Para executar tudo em containers: Docker Desktop com Docker Compose.
+- Para desenvolvimento fora dos containers: Node.js 22 ou superior e npm 10 ou superior.
 - Portas `3000`, `3001` e `5433` disponíveis.
 
 ## Execução local
 
-### 1. Iniciar o PostgreSQL
+### Opção recomendada: aplicação completa com Docker
 
-Na raiz do projeto:
+Na primeira execução, crie o arquivo local de variáveis a partir do exemplo versionado:
 
 ```powershell
-docker compose up -d
+Copy-Item .env.example .env
+```
+
+Depois, um único comando constrói as imagens, inicia o PostgreSQL, aplica as migrations e sobe backend e frontend:
+
+```powershell
+docker compose up --build -d
 docker compose ps
 ```
 
-O PostgreSQL fica disponível em `localhost:5433`. Os dados são preservados no volume `postgres_data`.
+Depois que os serviços estiverem saudáveis:
 
-### 2. Configurar o backend
+- Frontend: http://localhost:3001
+- Backend: http://localhost:3000
+- PostgreSQL: `localhost:5433`
+
+As migrations são executadas automaticamente pelo serviço `migrate`. Os dados são preservados no volume `postgres_data`.
+
+O `.env` da raiz é lido automaticamente pelo Docker Compose e fornece `POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB`. Ele é ignorado pelo Git. Essas credenciais são exclusivas para execução local, não protegem dados reais e devem ser trocadas caso o ambiente seja compartilhado. Para evitar problemas na montagem da `DATABASE_URL`, use uma senha alfanumérica ou codificada para URL.
+
+Para acompanhar a inicialização:
+
+```powershell
+docker compose logs -f
+```
+
+Para encerrar sem apagar os dados:
+
+```powershell
+docker compose down
+```
+
+### Opção para desenvolvimento: Node.js local e banco no Docker
+
+Inicie somente o PostgreSQL:
+
+```powershell
+docker compose up -d postgres
+```
+
+Configure o backend:
 
 ```powershell
 cd backend
@@ -108,16 +144,14 @@ PORT=3000
 CORS_ORIGINS="http://localhost:3001"
 ```
 
-Mais de uma origem CORS pode ser informada separando os endereços por vírgula.
-
-### 3. Preparar o banco
+Prepare o banco:
 
 ```powershell
 npx prisma generate
 npx prisma migrate deploy
 ```
 
-### 4. Iniciar a API
+Inicie a API:
 
 ```powershell
 npm run start:dev
@@ -125,7 +159,7 @@ npm run start:dev
 
 A API ficará disponível em `http://localhost:3000`.
 
-### 5. Configurar e iniciar o frontend
+Em outro terminal, configure e inicie o frontend:
 
 Em outro terminal, a partir da raiz do projeto:
 
@@ -255,7 +289,7 @@ Depois, ela pode ser aprovada ou rejeitada:
 }
 ```
 
-Transições incompatíveis com o estado atual retornam `409 Conflict`. Aprovação ou rejeição sem comentário retorna `400 Bad Request`.
+Transições incompatíveis com o estado atual ou concorrentes retornam `409 Conflict`. Aprovação ou rejeição sem comentário retorna `400 Bad Request`. Solicitações aprovadas ou rejeitadas são finais e também não aceitam novas edições cadastrais.
 
 ### Dashboard
 
@@ -282,10 +316,10 @@ Solicitações excluídas logicamente não participam das consultas nem dos indi
 |---|---|
 | `200` | Consulta ou atualização concluída |
 | `201` | Solicitação cadastrada |
-| `204` | Exclusão lógica concluída |
+| `204` | Exclusão lógica concluída ou já realizada anteriormente |
 | `400` | Entrada inválida ou comentário obrigatório ausente |
-| `404` | Solicitação inexistente ou excluída |
-| `409` | Transição de status não permitida |
+| `404` | Solicitação inexistente ou excluída nas operações de consulta |
+| `409` | Estado incompatível, edição de decisão final ou conflito concorrente |
 
 ## Testes e qualidade
 
@@ -298,17 +332,35 @@ npm test -- --runInBand
 npm run test:e2e -- --runInBand
 ```
 
-Os testes unitários cobrem regras do Service e agregações do dashboard. Os testes E2E verificam rotas, pipes, DTOs e códigos HTTP com dependências controladas. O fluxo completo também pode ser exercitado contra o PostgreSQL local usando os exemplos da seção de API.
+Os testes unitários cobrem regras do Service e agregações do dashboard. Os testes E2E verificam rotas, pipes, DTOs e códigos HTTP com dependências controladas.
+
+Para executar a suíte de integração em um PostgreSQL descartável e separado do banco de desenvolvimento:
+
+```powershell
+docker compose --profile test up -d --wait postgres-test
+$env:NODE_ENV="test"
+$env:DATABASE_URL="postgresql://sicredi_test:sicredi_test@localhost:5434/desafio_sicredi_test?schema=public"
+cd backend
+npx prisma migrate deploy
+npm run test:integration
+cd ..
+docker compose --profile test rm -sf postgres-test
+```
+
+A suíte aborta antes da limpeza se `NODE_ENV` não for `test` ou se o nome do banco não contiver `test`.
 
 Dentro de `frontend`:
 
 ```powershell
 npm run typecheck
 npm run lint
+npm test -- --run
 npm run build
 ```
 
-A partir da raiz, os comandos `npm run build`, `npm run lint`, `npm run typecheck`, `npm test` e `npm run test:e2e` encaminham a verificação para o projeto correspondente.
+A partir da raiz, os comandos `npm run build`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run test:integration` e `npm run test:frontend` encaminham a verificação para o projeto correspondente.
+
+O workflow `.github/workflows/ci.yml` executa qualidade do backend, qualidade do frontend e integração PostgreSQL em jobs separados para pushes e pull requests direcionados à branch `main`.
 
 ## Decisões técnicas
 
@@ -326,11 +378,15 @@ Operações que modificam a solicitação e geram histórico usam a mesma transa
 
 ### Separação das atualizações
 
-Dados cadastrais usam `PATCH /solicitacoes/:id`. Mudanças de status usam um endpoint específico, no qual a máquina de estados e o comentário obrigatório são aplicados.
+Dados cadastrais usam `PATCH /solicitacoes/:id`. Mudanças de status usam um endpoint específico, no qual a máquina de estados e o comentário obrigatório são aplicados. Depois de aprovada ou rejeitada, a solicitação torna-se imutável.
+
+### Concorrência e idempotência
+
+Edição, decisão e exclusão usam atualizações condicionais pelo estado previamente lido. Se outra operação modificar o registro primeiro, a API não sobrescreve silenciosamente a mudança. Exclusões repetidas são idempotentes e não duplicam o evento de histórico.
 
 ### Validação
 
-O `ValidationPipe` remove a ambiguidade dos contratos, converte parâmetros quando necessário e rejeita propriedades que não pertencem aos DTOs.
+O `ValidationPipe` remove a ambiguidade dos contratos, converte parâmetros quando necessário e rejeita propriedades que não pertencem aos DTOs. Textos são normalizados antes da validação; título, solicitante e área aceitam até 150 caracteres, descrição até 2.000 e comentário de decisão até 1.000.
 
 ## Evolução da solução
 
@@ -349,6 +405,14 @@ Consultas mais frequentes podem receber cache após medição. Pesquisa textual 
 - Migrations revisadas e aplicadas de forma controlada.
 - Documentação versionada dos contratos da API.
 - Testes de integração com PostgreSQL efêmero.
+
+### Segredos e configuração por ambiente
+
+As credenciais presentes no `.env.example` existem apenas para facilitar a avaliação local. Senhas reais não devem ser gravadas no `compose.yml`, em Dockerfiles, em argumentos de build, em variáveis `NEXT_PUBLIC_*` nem no histórico do Git.
+
+Em produção, `POSTGRES_PASSWORD` e `DATABASE_URL` devem ser fornecidas em tempo de execução por um gerenciador de segredos, como AWS Secrets Manager, Azure Key Vault, Google Secret Manager, HashiCorp Vault ou Secrets do Kubernetes. O acesso ao ambiente Docker também deve ser restrito, porque usuários com permissão para inspecionar containers podem visualizar suas variáveis de ambiente.
+
+`NEXT_PUBLIC_API_URL`, `CORS_ORIGINS`, portas e nomes de host são configurações públicas, não segredos. Em especial, qualquer variável `NEXT_PUBLIC_*` é incorporada ao JavaScript enviado ao navegador.
 
 ### Principais riscos técnicos
 
@@ -393,8 +457,8 @@ O frontend poderia apresentar separadamente o status da solicitação e o status
 - A integração externa está documentada, mas não implementada.
 - Logs estruturados e observabilidade completa são evoluções futuras.
 - Não há anexos nem notificações.
-- Os testes HTTP usam dependências controladas; ainda não há uma suíte automatizada de integração com PostgreSQL real.
-- O frontend possui validação, lint e build automatizáveis, mas ainda não inclui uma suíte de testes versionada.
+- A suíte de integração cobre os fluxos críticos com PostgreSQL real, mas ainda não representa testes de carga ou recuperação de desastre.
+- O frontend possui testes de componentes para formulários, imutabilidade e decisão; ainda não inclui automação E2E em navegador real.
 
 Esses itens não impedem a avaliação do protótipo, mas devem ser considerados antes de uma utilização em produção.
 

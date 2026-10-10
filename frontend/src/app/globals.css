@@ -4,6 +4,12 @@
   color-scheme: light;
   --background: #f6f8f3;
   --foreground: #20382c;
+  --color-border: #d8e0d6;
+  --color-muted: #55665a;
+  --color-primary: #195b40;
+  --color-primary-hover: #124b33;
+  --color-soft: #f1f5eb;
+  --color-danger-muted: #84483f;
 }
 
 @theme inline {

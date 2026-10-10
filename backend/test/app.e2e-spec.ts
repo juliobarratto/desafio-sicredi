@@ -99,6 +99,44 @@ describe("API (e2e)", () => {
       });
   });
 
+  it("normaliza os textos antes de encaminhar o cadastro", async () => {
+    solicitacoesService.criar.mockImplementation((dados) => dados);
+
+    await request(app.getHttpServer())
+      .post("/solicitacoes")
+      .send({
+        titulo: "  Nova rede  ",
+        descricao: "  Renovação da rede interna.  ",
+        solicitante: "  Julio  ",
+        areaSolicitante: "  Tecnologia  ",
+        prioridade: Prioridade.ALTA,
+      })
+      .expect(201);
+
+    expect(solicitacoesService.criar).toHaveBeenCalledWith({
+      titulo: "Nova rede",
+      descricao: "Renovação da rede interna.",
+      solicitante: "Julio",
+      areaSolicitante: "Tecnologia",
+      prioridade: Prioridade.ALTA,
+    });
+  });
+
+  it("rejeita campos obrigatórios formados apenas por espaços", async () => {
+    await request(app.getHttpServer())
+      .post("/solicitacoes")
+      .send({
+        titulo: "   ",
+        descricao: "Descrição válida.",
+        solicitante: "Julio",
+        areaSolicitante: "Tecnologia",
+        prioridade: Prioridade.ALTA,
+      })
+      .expect(400);
+
+    expect(solicitacoesService.criar).not.toHaveBeenCalled();
+  });
+
   it("rejeita prioridade inválida e propriedades desconhecidas", async () => {
     await request(app.getHttpServer())
       .post("/solicitacoes")

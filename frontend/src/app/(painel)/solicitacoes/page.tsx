@@ -16,7 +16,7 @@ export default async function SolicitacoesPage({
             Acompanhamento das demandas
           </p>
           <h1 className="text-3xl font-bold">Solicitações</h1>
-          <p className="mt-2 text-sm text-[#738176]">
+          <p className="mt-2 text-sm text-[var(--color-muted)]">
             Consulte as demandas e encontre o que precisa por pesquisa, status ou prioridade.
           </p>
         </div>

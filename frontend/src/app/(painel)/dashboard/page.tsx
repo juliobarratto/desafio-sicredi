@@ -12,7 +12,7 @@ export default function DashboardPage() {
           <h1 className="mt-2 text-3xl font-bold tracking-tight">
             Visão geral
           </h1>
-          <p className="mt-2 text-xs leading-6 text-[#738176]">
+          <p className="mt-2 text-xs leading-6 text-[var(--color-muted)]">
             O que entrou, o que está em análise e o que já foi decidido.
           </p>
         </div>

@@ -19,7 +19,7 @@ export default async function EditarSolicitacaoPage({
           ← Voltar para detalhes
         </Link>
         <h1 className="mt-4 text-3xl font-bold">Editar solicitação</h1>
-        <p className="mt-2 text-sm text-[#738176]">
+        <p className="mt-2 text-sm text-[var(--color-muted)]">
           Atualize os dados cadastrais. O andamento é alterado na tela de detalhes.
         </p>
       </header>

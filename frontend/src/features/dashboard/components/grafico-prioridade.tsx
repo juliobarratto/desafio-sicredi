@@ -19,7 +19,7 @@ export function GraficoPrioridade({ distribuicao }: GraficoPrioridadeProps) {
       <h2 className="text-lg font-semibold tracking-tight">
         Distribuição por prioridade
       </h2>
-      <p className="mt-1 text-xs text-[#738176]">
+      <p className="mt-1 text-xs text-[var(--color-muted)]">
         Onde estão as demandas mais urgentes
       </p>
 
@@ -40,7 +40,7 @@ export function GraficoPrioridade({ distribuicao }: GraficoPrioridadeProps) {
                   />
                 </div>
               </div>
-              <p className="pt-3 text-xs text-[#738176]">{prioridade.nome}</p>
+              <p className="pt-3 text-xs text-[var(--color-muted)]">{prioridade.nome}</p>
             </li>
           );
         })}

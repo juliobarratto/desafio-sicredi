@@ -55,15 +55,15 @@ export function SolicitacoesRecentes() {
   }
 
   return (
-    <section className="overflow-hidden rounded-xl border border-[#e0e6de] bg-white">
+    <section className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-white">
       <header className="flex items-center justify-between gap-4 p-5 sm:p-6">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Solicitações recentes</h2>
-          <p className="mt-1 text-xs text-[#738176]">Últimas demandas cadastradas</p>
+          <p className="mt-1 text-xs text-[var(--color-muted)]">Últimas demandas cadastradas</p>
         </div>
         <Link
           href="/solicitacoes"
-          className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-md border border-[#e0e6de] px-3 py-2 text-xs transition-colors hover:bg-[#f1f5eb]"
+          className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-md border border-[var(--color-border)] px-3 py-2 text-xs transition-colors hover:bg-[var(--color-soft)]"
         >
           Ver todas <span aria-hidden="true">↗</span>
         </Link>
@@ -81,11 +81,11 @@ export function SolicitacoesRecentes() {
           </button>
         </div>
       ) : solicitacoes === null ? (
-        <p role="status" className="border-t border-[#e0e6de] p-5 text-sm text-[#738176]">
+        <p role="status" className="border-t border-[var(--color-border)] p-5 text-sm text-[var(--color-muted)]">
           Carregando solicitações recentes...
         </p>
       ) : solicitacoes.length === 0 ? (
-        <p className="border-t border-[#e0e6de] p-5 text-sm text-[#738176]">
+        <p className="border-t border-[var(--color-border)] p-5 text-sm text-[var(--color-muted)]">
           Nenhuma solicitação cadastrada.
         </p>
       ) : (
@@ -104,7 +104,7 @@ export function SolicitacoesRecentes() {
                     {solicitacao.titulo}
                   </Link>
                 </h3>
-                <p className="mt-1 text-[11px] leading-5 text-[#738176]">
+                <p className="mt-1 text-[11px] leading-5 text-[var(--color-muted)]">
                   {solicitacao.areaSolicitante}
                   {" · "}
                   <time dateTime={solicitacao.dataSolicitacao}>

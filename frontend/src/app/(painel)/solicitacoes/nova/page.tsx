@@ -9,7 +9,7 @@ export default function NovaSolicitacaoPage() {
           ← Voltar para solicitações
         </Link>
         <h1 className="mt-4 text-3xl font-bold">Nova solicitação</h1>
-        <p className="mt-2 text-sm text-[#738176]">
+        <p className="mt-2 text-sm text-[var(--color-muted)]">
           Registre a demanda para que ela possa ser acompanhada e analisada.
         </p>
       </header>

@@ -1,18 +1,106 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: sicredi-postgres
-
     environment:
-      POSTGRES_USER: sicredi
-      POSTGRES_PASSWORD: sicredi
-      POSTGRES_DB: sicredi
-      
+      POSTGRES_USER: ${POSTGRES_USER:?Defina POSTGRES_USER no arquivo .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo .env}
+      POSTGRES_DB: ${POSTGRES_DB:?Defina POSTGRES_DB no arquivo .env}
     ports:
       - "5433:5432"
-
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  postgres-test:
+    profiles: ["test"]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: sicredi_test
+      POSTGRES_PASSWORD: sicredi_test
+      POSTGRES_DB: desafio_sicredi_test
+    ports:
+      - "5434:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sicredi_test -d desafio_sicredi_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    restart: "no"
+
+  migrate:
+    build:
+      context: ./backend
+      target: migrate
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:?Defina POSTGRES_USER no arquivo .env}:${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo .env}@postgres:5432/${POSTGRES_DB:?Defina POSTGRES_DB no arquivo .env}?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+      target: runner
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:?Defina POSTGRES_USER no arquivo .env}:${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo .env}@postgres:5432/${POSTGRES_DB:?Defina POSTGRES_DB no arquivo .env}?schema=public
+      PORT: 3000
+      CORS_ORIGINS: http://localhost:3001
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/dashboard').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      target: runner
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3000
+    environment:
+      PORT: 3001
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "3001:3001"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/dashboard').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
+
 volumes:
   postgres_data:

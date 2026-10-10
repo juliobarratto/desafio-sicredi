@@ -10,6 +10,8 @@
     "lint": "npm --prefix backend run lint && npm --prefix frontend run lint",
     "typecheck": "npm --prefix frontend run typecheck",
     "test": "npm --prefix backend test -- --runInBand",
-    "test:e2e": "npm --prefix backend run test:e2e -- --runInBand"
+    "test:e2e": "npm --prefix backend run test:e2e -- --runInBand",
+    "test:integration": "npm --prefix backend run test:integration",
+    "test:frontend": "npm --prefix frontend test -- --run"
   }
 }

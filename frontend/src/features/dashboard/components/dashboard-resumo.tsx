@@ -63,7 +63,7 @@ export function DashboardResumo() {
 
   if (!resumo) {
     return (
-      <p role="status" className="mt-6 rounded-xl border border-[#e0e6de] bg-white p-5 text-sm text-[#738176]">
+      <p role="status" className="mt-6 rounded-xl border border-[var(--color-border)] bg-white p-5 text-sm text-[var(--color-muted)]">
         Carregando indicadores...
       </p>
     );

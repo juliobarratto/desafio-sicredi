@@ -20,7 +20,7 @@ export function GraficoStatus({ resumo }: GraficoStatusProps) {
       <h2 className="text-lg font-semibold tracking-tight">
         Andamento das solicitações
       </h2>
-      <p className="mt-1 text-xs text-[#738176]">Quantidade por status</p>
+      <p className="mt-1 text-xs text-[var(--color-muted)]">Quantidade por status</p>
 
       <ul className="mt-7 space-y-4">
         {indicadores.map((item) => (
