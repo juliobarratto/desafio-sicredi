@@ -1,142 +1,173 @@
-# Gestão de Solicitações Internas - Desafio Sicredi
+# Gestão de Solicitações Internas — Desafio Sicredi
 
-Protótipo para centralizar solicitações internas, acompanhar seu andamento, preservar o histórico das decisões e disponibilizar indicadores operacionais.
+Aplicação full stack para cadastrar, acompanhar e decidir solicitações internas, preservando o histórico das operações e apresentando indicadores gerenciais.
 
-A solução é full stack: o backend usa NestJS, Prisma e PostgreSQL, enquanto o frontend usa Next.js, React, Axios e Tailwind CSS.
+**Autor:** Julio Cesar R. Barratto · **Stack principal:** NestJS, Prisma, PostgreSQL, Next.js, React e Docker Compose.
 
-## Funcionalidades implementadas
+## Sumário
 
-- Cadastro de solicitações com prioridade e status inicial `ABERTA`.
-- Consulta individual de solicitações.
-- Listagem paginada com pesquisa textual.
-- Filtros por status e prioridade.
-- Ordenação por data.
-- Atualização dos dados cadastrais sem permitir alteração indireta do status.
-- Fluxo controlado de status:
+- [Execução rápida](#execução-rápida)
+- [O que foi entregue](#o-que-foi-entregue)
+- [Capturas da aplicação](#capturas-da-aplicação)
+- [Arquitetura e modelo de dados](#arquitetura-e-modelo-de-dados)
+- [Desenvolvimento local](#desenvolvimento-local)
+- [Frontend e API](#frontend-e-api)
+- [Testes e qualidade](#testes-e-qualidade)
+- [Decisões técnicas](#decisões-técnicas)
+- [Evolução para produção](#evolução-para-produção)
+- [Uso de inteligência artificial](#uso-de-inteligência-artificial)
+
+## Execução rápida
+
+### Pré-requisitos
+
+- Docker Desktop com Docker Compose.
+- Portas `3000`, `3001` e `5433` disponíveis.
+
+No PowerShell, a partir da raiz do projeto:
+
+```powershell
+Copy-Item .env.example .env
+docker compose up --build -d --wait
+docker compose ps
+```
+
+O ambiente estará disponível nos seguintes endereços:
+
+| Serviço | Endereço |
+|---|---|
+| Aplicação web | http://localhost:3001 |
+| API | http://localhost:3000 |
+| PostgreSQL | `localhost:5433` |
+
+O serviço `migrate` aplica as migrations e, em seguida, o serviço `seed` cria 8 solicitações fictícias com históricos coerentes. O seed só popula um banco sem solicitações; por isso, novas subidas do ambiente não duplicam registros nem alteram dados existentes. Os dados são preservados no volume `postgres_data`.
+
+Para acompanhar os logs ou encerrar o ambiente:
+
+```powershell
+docker compose logs -f
+docker compose down
+```
+
+> `docker compose down -v` também remove o volume do PostgreSQL e apaga os dados locais.
+
+## O que foi entregue
+
+| Área | Implementação |
+|---|---|
+| Gestão | Cadastro, consulta, edição e exclusão lógica de solicitações |
+| Fluxo | Máquina de estados com decisões finais imutáveis |
+| Rastreabilidade | Histórico de criação, mudança de status e exclusão |
+| Consulta | Pesquisa textual, filtros, ordenação e paginação |
+| Dashboard | Totais por status, distribuição por prioridade e registros recentes |
+| Experiência | Interface responsiva e estados de carregamento, erro, vazio e nova tentativa |
+| Persistência | PostgreSQL, Prisma, migrations e índices para consultas frequentes |
+| Dados iniciais | Seed idempotente com solicitações em todos os status |
+| Qualidade | Testes unitários, HTTP, integração com PostgreSQL real e componentes React |
+| Entrega | Ambiente completo em Docker Compose e pipeline de CI |
+
+O fluxo de status permitido é:
 
 ```text
 ABERTA -> EM_ANALISE -> APROVADA
                      -> REJEITADA
 ```
 
-- Comentário obrigatório para aprovação ou rejeição.
-- Histórico de criação, alteração de status e exclusão.
-- Exclusão lógica por meio de `dataExclusao`.
-- Dashboard com totais por status e distribuição por prioridade.
-- Validação global dos contratos de entrada.
-- Tratamento de erros com códigos HTTP adequados.
-- Testes unitários e testes HTTP automatizados.
-- PostgreSQL executado por Docker Compose.
-- Banco, migrations, backend e frontend executáveis juntos por Docker Compose.
-- Interface responsiva com dashboard, indicadores e gráficos.
-- Listagem visual com pesquisa, filtros, ordenação e paginação.
-- Cadastro, consulta, edição e exclusão de solicitações pelo frontend.
-- Mudança de status e consulta do histórico pelo frontend.
-- Estados visuais de carregamento, erro, lista vazia e nova tentativa.
+- Toda solicitação nasce com status `ABERTA`.
+- Aprovação e rejeição exigem comentário.
+- Solicitações aprovadas ou rejeitadas não aceitam novas alterações.
+- O status só pode ser modificado pelo endpoint específico de transição.
 
-## Tecnologias
+## Capturas da aplicação
 
-- Node.js e TypeScript
-- NestJS 12
-- Prisma 7
-- PostgreSQL 16
-- Jest e Supertest
-- Next.js 16 e React 19
-- Axios e Tailwind CSS 4
-- Docker Compose
+| Dashboard | Pesquisa e filtros |
+|---|---|
+| ![Dashboard com indicadores das solicitações](docs/images/dashboard.png) | ![Listagem com pesquisa, status e prioridade filtrados](docs/images/filtros-solicitacoes.png) |
 
-## Estrutura
+| Cadastro | Edição |
+|---|---|
+| ![Formulário para criar uma solicitação](docs/images/nova-solicitacao.png) | ![Formulário para editar uma solicitação](docs/images/editar-solicitacao.png) |
+
+| Detalhes, decisão e histórico |
+|---|
+| ![Detalhes da solicitação com ações e histórico](docs/images/detalhes-solicitacao.png) |
+
+## Arquitetura e modelo de dados
+
+```mermaid
+flowchart LR
+    U[Usuário] --> F[Next.js + React + TypeScript]
+    F -->|HTTP / JSON| B[NestJS + TypeScript]
+    B --> P[Prisma ORM]
+    P --> DB[(PostgreSQL)]
+```
+
+| Camada | Responsabilidade |
+|---|---|
+| Next.js | Rotas, layout e composição das páginas |
+| React | Formulários, estados visuais e interação |
+| TypeScript | Tipagem compartilhada no frontend e backend, contratos e segurança durante o desenvolvimento |
+| Axios | Comunicação do frontend com a API |
+| NestJS | Contratos HTTP, validação e regras de negócio |
+| Prisma | Acesso tipado, transações e consultas ao banco |
+| PostgreSQL | Persistência das solicitações e de seus históricos |
+
+### Modelo lógico
+
+![Modelo lógico do banco de dados](docs/images/modelo-logico.jpg)
+
+O modelo foi elaborado no [Miro](https://miro.com/app/board/uXjVEf_DkGc=/?moveToWidget=3458764685739506927). A imagem também está versionada no repositório.
+
+### Estrutura do projeto
 
 ```text
 desafio-sicredi/
+|-- .github/workflows/ci.yml
 |-- backend/
-|   |-- Dockerfile
 |   |-- prisma/
 |   |   |-- migrations/
 |   |   `-- schema.prisma
 |   |-- src/
+|   |   |-- config/
 |   |   |-- dashboard/
 |   |   |-- prisma/
 |   |   `-- solicitacoes/
 |   `-- test/
+|-- docs/images/
 |-- frontend/
-|   |-- Dockerfile
-|   |-- public/
 |   `-- src/
 |       |-- app/
 |       |-- components/
 |       |-- errors/
 |       |-- features/
-|       `-- lib/
+|       |-- lib/
+|       `-- test/
 |-- compose.yml
 |-- package.json
 `-- README.md
 ```
 
-No backend, os Controllers tratam HTTP, os DTOs validam a entrada e os Services aplicam as regras de negócio e coordenam o Prisma. No frontend, `app` define as rotas e layouts, enquanto `features` agrupa componentes, types e services por funcionalidade.
+No backend, Controllers cuidam do protocolo HTTP, DTOs validam as entradas e Services concentram regras de negócio e transações. No frontend, `app` define rotas e layouts, enquanto `features` organiza componentes, tipos e serviços por domínio.
 
-## Pré-requisitos
+## Desenvolvimento local
 
-- Para executar tudo em containers: Docker Desktop com Docker Compose.
-- Para desenvolvimento fora dos containers: Node.js 22 ou superior e npm 10 ou superior.
-- Portas `3000`, `3001` e `5433` disponíveis.
+Para executar fora dos containers, use Node.js `>=24.9.0 <25` e npm 11. O PostgreSQL pode continuar no Docker.
 
-## Execução local
-
-### Opção recomendada: aplicação completa com Docker
-
-Na primeira execução, crie o arquivo local de variáveis a partir do exemplo versionado:
+### Backend
 
 ```powershell
-Copy-Item .env.example .env
-```
-
-Depois, um único comando constrói as imagens, inicia o PostgreSQL, aplica as migrations e sobe backend e frontend:
-
-```powershell
-docker compose up --build -d
-docker compose ps
-```
-
-Depois que os serviços estiverem saudáveis:
-
-- Frontend: http://localhost:3001
-- Backend: http://localhost:3000
-- PostgreSQL: `localhost:5433`
-
-As migrations são executadas automaticamente pelo serviço `migrate`. Os dados são preservados no volume `postgres_data`.
-
-O `.env` da raiz é lido automaticamente pelo Docker Compose e fornece `POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB`. Ele é ignorado pelo Git. Essas credenciais são exclusivas para execução local, não protegem dados reais e devem ser trocadas caso o ambiente seja compartilhado. Para evitar problemas na montagem da `DATABASE_URL`, use uma senha alfanumérica ou codificada para URL.
-
-Para acompanhar a inicialização:
-
-```powershell
-docker compose logs -f
-```
-
-Para encerrar sem apagar os dados:
-
-```powershell
-docker compose down
-```
-
-### Opção para desenvolvimento: Node.js local e banco no Docker
-
-Inicie somente o PostgreSQL:
-
-```powershell
-docker compose up -d postgres
-```
-
-Configure o backend:
-
-```powershell
+docker compose up -d --wait postgres
 cd backend
 Copy-Item .env.example .env
-npm install
+npm ci
+npm run prisma:generate
+npx prisma migrate deploy
+npm run build
+npm run prisma:seed
+npm run start:dev
 ```
 
-Variáveis disponíveis:
+A API será iniciada em `http://localhost:3000` com estas variáveis locais:
 
 ```dotenv
 DATABASE_URL="postgresql://sicredi:sicredi@localhost:5433/sicredi?schema=public"
@@ -144,67 +175,70 @@ PORT=3000
 CORS_ORIGINS="http://localhost:3001"
 ```
 
-Prepare o banco:
+### Frontend
 
-```powershell
-npx prisma generate
-npx prisma migrate deploy
-```
-
-Inicie a API:
-
-```powershell
-npm run start:dev
-```
-
-A API ficará disponível em `http://localhost:3000`.
-
-Em outro terminal, configure e inicie o frontend:
-
-Em outro terminal, a partir da raiz do projeto:
+Em outro terminal, a partir da raiz:
 
 ```powershell
 cd frontend
 Copy-Item .env.example .env.local
-npm install
+npm ci
 npm run dev
 ```
 
-A aplicação ficará disponível em `http://localhost:3001`. O script já fixa essa porta para não disputar a porta 3000 com a API.
+A aplicação será iniciada em `http://localhost:3001`.
 
-Também é possível executar os serviços a partir da raiz, cada um em seu próprio terminal:
+Depois que as dependências de ambos os projetos estiverem instaladas, também é possível iniciar cada serviço pelos atalhos da raiz:
 
 ```powershell
 npm run dev:backend
 npm run dev:frontend
 ```
 
-## Frontend
+O comando `npm run prisma:seed` é seguro para repetição: ele cria os dados fictícios somente quando não existe nenhuma solicitação. As credenciais de `.env.example` servem apenas para avaliação local. Se o ambiente for compartilhado, altere a senha e use um valor alfanumérico ou codificado para URL.
+
+## Frontend e API
+
+### Rotas do frontend
 
 | Rota | Descrição |
 |---|---|
-| `/dashboard` | Indicadores, distribuição por status e prioridade e solicitações recentes |
+| `/dashboard` | Indicadores, gráficos e solicitações recentes |
 | `/solicitacoes` | Listagem, pesquisa, filtros, ordenação e paginação |
 | `/solicitacoes/nova` | Cadastro de solicitação |
 | `/solicitacoes/:id` | Detalhes, histórico, mudança de status e exclusão |
 | `/solicitacoes/:id/editar` | Edição dos dados cadastrais |
 
-A raiz `/` redireciona para `/dashboard`. As ações disponíveis na página de detalhes acompanham a máquina de estados definida pelo backend.
+A raiz `/` redireciona para `/dashboard`. As ações exibidas na página de detalhes acompanham o estado atual da solicitação.
 
-## API
+### Endpoints da API
 
 | Método | Endpoint | Descrição |
 |---|---|---|
 | `POST` | `/solicitacoes` | Cadastra uma solicitação |
-| `GET` | `/solicitacoes` | Lista, pesquisa, filtra e pagina |
+| `GET` | `/solicitacoes` | Lista, pesquisa, filtra, ordena e pagina |
 | `GET` | `/solicitacoes/:id` | Consulta uma solicitação ativa |
 | `GET` | `/solicitacoes/:id/historico` | Consulta o histórico |
-| `PATCH` | `/solicitacoes/:id` | Atualiza os dados cadastrais |
-| `PATCH` | `/solicitacoes/:id/status` | Altera o status conforme o fluxo permitido |
-| `DELETE` | `/solicitacoes/:id` | Realiza exclusão lógica |
+| `PATCH` | `/solicitacoes/:id` | Atualiza dados cadastrais |
+| `PATCH` | `/solicitacoes/:id/status` | Executa uma transição de status |
+| `DELETE` | `/solicitacoes/:id` | Realiza a exclusão lógica |
 | `GET` | `/dashboard` | Retorna os indicadores operacionais |
 
-### Cadastro
+Parâmetros opcionais de `GET /solicitacoes`:
+
+| Parâmetro | Valores |
+|---|---|
+| `pesquisa` | Texto no título, descrição, solicitante ou área |
+| `status` | `ABERTA`, `EM_ANALISE`, `APROVADA` ou `REJEITADA` |
+| `prioridade` | `BAIXA`, `MEDIA` ou `ALTA` |
+| `ordemData` | `asc` ou `desc` |
+| `pagina` | Inteiro a partir de 1; padrão `1` |
+| `limite` | Inteiro entre 1 e 100; padrão `10` |
+
+<details>
+<summary><strong>Exemplos de requisições e respostas</strong></summary>
+
+#### Cadastro
 
 ```http
 POST /solicitacoes
@@ -221,26 +255,11 @@ Content-Type: application/json
 }
 ```
 
-As prioridades aceitas são `BAIXA`, `MEDIA` e `ALTA`.
-
-### Listagem
+#### Listagem
 
 ```http
 GET /solicitacoes?pesquisa=computador&status=ABERTA&prioridade=ALTA&ordemData=desc&pagina=1&limite=10
 ```
-
-Parâmetros opcionais:
-
-| Parâmetro | Valores |
-|---|---|
-| `pesquisa` | Texto procurado em título, descrição, solicitante ou área |
-| `status` | `ABERTA`, `EM_ANALISE`, `APROVADA` ou `REJEITADA` |
-| `prioridade` | `BAIXA`, `MEDIA` ou `ALTA` |
-| `ordemData` | `asc` ou `desc` |
-| `pagina` | Inteiro a partir de 1 |
-| `limite` | Inteiro entre 1 e 100 |
-
-Resposta:
 
 ```json
 {
@@ -254,25 +273,9 @@ Resposta:
 }
 ```
 
-### Atualização cadastral
+#### Alteração de status
 
-```http
-PATCH /solicitacoes/1
-Content-Type: application/json
-```
-
-```json
-{
-  "titulo": "Renovar computadores da equipe de atendimento",
-  "prioridade": "MEDIA"
-}
-```
-
-Ao menos um campo deve ser informado. O status não pode ser alterado por esse endpoint.
-
-### Alteração de status
-
-Primeiro, uma solicitação aberta deve entrar em análise:
+Primeiro, uma solicitação aberta entra em análise:
 
 ```json
 {
@@ -280,7 +283,7 @@ Primeiro, uma solicitação aberta deve entrar em análise:
 }
 ```
 
-Depois, ela pode ser aprovada ou rejeitada:
+Depois, ela pode receber uma decisão final:
 
 ```json
 {
@@ -289,9 +292,7 @@ Depois, ela pode ser aprovada ou rejeitada:
 }
 ```
 
-Transições incompatíveis com o estado atual ou concorrentes retornam `409 Conflict`. Aprovação ou rejeição sem comentário retorna `400 Bad Request`. Solicitações aprovadas ou rejeitadas são finais e também não aceitam novas edições cadastrais.
-
-### Dashboard
+#### Dashboard
 
 ```json
 {
@@ -308,33 +309,51 @@ Transições incompatíveis com o estado atual ou concorrentes retornam `409 Con
 }
 ```
 
-Solicitações excluídas logicamente não participam das consultas nem dos indicadores.
+</details>
 
-## Códigos de resposta principais
+### Validações e respostas
 
-| Código | Uso |
+- Título e solicitante: até 150 caracteres.
+- Área solicitante: até 100 caracteres.
+- Descrição: até 2.000 caracteres.
+- Comentário de decisão: até 1.000 caracteres.
+- Propriedades fora dos DTOs são rejeitadas.
+- Textos são normalizados antes da validação.
+
+| Código | Uso principal |
 |---|---|
 | `200` | Consulta ou atualização concluída |
 | `201` | Solicitação cadastrada |
-| `204` | Exclusão lógica concluída ou já realizada anteriormente |
+| `204` | Exclusão lógica concluída |
 | `400` | Entrada inválida ou comentário obrigatório ausente |
-| `404` | Solicitação inexistente ou excluída nas operações de consulta |
-| `409` | Estado incompatível, edição de decisão final ou conflito concorrente |
+| `404` | Solicitação inexistente ou já excluída |
+| `409` | Transição inválida, decisão final imutável ou conflito concorrente |
+
+Solicitações excluídas logicamente não aparecem nas consultas nem nos indicadores.
 
 ## Testes e qualidade
 
-Dentro de `backend`:
+A entrega possui **50 testes automatizados**:
+
+| Suíte | Quantidade | Cobertura principal |
+|---|---:|---|
+| Backend unitário | 26 | Services, Controllers, configuração e dashboard |
+| Backend E2E HTTP | 10 | Rotas, pipes, DTOs e códigos HTTP |
+| Backend integração | 9 | Persistência, seed, transações e concorrência em PostgreSQL real |
+| Frontend componentes | 5 | Formulários, edição, imutabilidade e decisão |
+
+Comandos disponíveis na raiz:
 
 ```powershell
 npm run build
 npm run lint
-npm test -- --runInBand
-npm run test:e2e -- --runInBand
+npm run typecheck
+npm test
+npm run test:e2e
+npm run test:frontend
 ```
 
-Os testes unitários cobrem regras do Service e agregações do dashboard. Os testes E2E verificam rotas, pipes, DTOs e códigos HTTP com dependências controladas.
-
-Para executar a suíte de integração em um PostgreSQL descartável e separado do banco de desenvolvimento:
+### Integração com PostgreSQL descartável
 
 ```powershell
 docker compose --profile test up -d --wait postgres-test
@@ -347,131 +366,174 @@ cd ..
 docker compose --profile test rm -sf postgres-test
 ```
 
-A suíte aborta antes da limpeza se `NODE_ENV` não for `test` ou se o nome do banco não contiver `test`.
+A suíte contém proteções para não limpar um banco que não esteja identificado como ambiente de teste. Ela cobre normalização, filtros, paginação, concorrência, exclusão lógica, indicadores, idempotência do seed e o histórico completo do fluxo.
 
-Dentro de `frontend`:
+### Integração contínua
 
-```powershell
-npm run typecheck
-npm run lint
-npm test -- --run
-npm run build
-```
+O workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) é executado em pushes e pull requests para `main` e separa a validação em quatro jobs:
 
-A partir da raiz, os comandos `npm run build`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run test:integration` e `npm run test:frontend` encaminham a verificação para o projeto correspondente.
+1. qualidade do backend;
+2. qualidade do frontend;
+3. integração com PostgreSQL;
+4. build e smoke test do ambiente Docker Compose.
 
-O workflow `.github/workflows/ci.yml` executa qualidade do backend, qualidade do frontend e integração PostgreSQL em jobs separados para pushes e pull requests direcionados à branch `main`.
+A CI também audita as dependências de produção e bloqueia vulnerabilidades de severidade alta. A automação E2E em navegador real foi mantida fora do escopo.
 
 ## Decisões técnicas
 
-### Exclusão lógica
+### Exclusão lógica e histórico
 
-Uma solicitação excluída recebe `dataExclusao`, mas permanece no banco. Isso preserva a rastreabilidade e permite auditoria sem expor o registro nas consultas normais.
+A exclusão preenche `dataExclusao`, mantendo o registro no banco para auditoria. Criação, mudanças de status e exclusão geram eventos em `historico_solicitacao`.
 
-### Histórico imutável
+### Transações e consistência
 
-Criação, mudanças de status e exclusão geram eventos em `historico_solicitacao`. O estado anterior e o novo estado ficam registrados quando aplicável.
+Operações que alteram a solicitação e registram histórico usam a mesma transação Prisma. Edição, decisão e exclusão também usam atualizações condicionais para evitar que operações concorrentes sobrescrevam mudanças silenciosamente. Uma exclusão repetida retorna `404` e não duplica o histórico.
 
-### Transações
+### Separação entre cadastro e decisão
 
-Operações que modificam a solicitação e geram histórico usam a mesma transação Prisma. Se qualquer gravação falhar, toda a operação é revertida.
+Dados cadastrais usam `PATCH /solicitacoes/:id`; mudanças de status usam `PATCH /solicitacoes/:id/status`. Essa separação impede alterações indiretas no fluxo e mantém a regra de decisão explícita.
 
-### Separação das atualizações
+### Consultas e índices
 
-Dados cadastrais usam `PATCH /solicitacoes/:id`. Mudanças de status usam um endpoint específico, no qual a máquina de estados e o comentário obrigatório são aplicados. Depois de aprovada ou rejeitada, a solicitação torna-se imutável.
+Os índices priorizam registros ativos por data, status e prioridade. A pesquisa textual permanece simples por ser adequada ao volume esperado para o protótipo.
 
-### Concorrência e idempotência
+### Configuração e containers
 
-Edição, decisão e exclusão usam atualizações condicionais pelo estado previamente lido. Se outra operação modificar o registro primeiro, a API não sobrescreve silenciosamente a mudança. Exclusões repetidas são idempotentes e não duplicam o evento de histórico.
+- Variáveis obrigatórias são validadas na inicialização.
+- CORS aceita apenas as origens configuradas.
+- Backend e frontend executam como usuário não privilegiado nas imagens finais.
+- A imagem do backend mantém apenas dependências de produção necessárias.
+- Health checks controlam a ordem de inicialização no Compose.
+- Migrations e seed são executados por serviços dedicados antes da API.
 
-### Validação
+## Limitações conhecidas
 
-O `ValidationPipe` remove a ambiguidade dos contratos, converte parâmetros quando necessário e rejeita propriedades que não pertencem aos DTOs. Textos são normalizados antes da validação; título, solicitante e área aceitam até 150 caracteres, descrição até 2.000 e comentário de decisão até 1.000.
+A aplicação atende ao escopo funcional do desafio, mas ainda não reúne todos os controles necessários para utilização em produção.
 
-## Evolução da solução
+| Limitação atual | Impacto |
+|---|---|
+| Não há autenticação nem autorização | Qualquer pessoa com acesso à aplicação pode consultar e modificar solicitações |
+| Não há segregação por usuário, perfil ou área | Todas as solicitações ficam disponíveis no mesmo contexto |
+| A integração com o sistema corporativo não foi implementada | Aprovações não produzem efeitos fora da aplicação |
+| Não há anexos, notificações ou discussões adicionais | O acompanhamento fica restrito aos dados e ao histórico da solicitação |
+| A observabilidade está limitada aos health checks | Ainda não há logs estruturados, métricas, tracing ou alertas |
+| O PostgreSQL utiliza um volume local | Backups, replicação e recuperação de desastre não estão configurados |
+| Não há testes automatizados em navegador real | Os componentes são testados isoladamente, mas o fluxo visual completo ainda depende de validação manual |
+| Não há testes de carga, caos ou recuperação | O comportamento sob alto volume e falhas de infraestrutura ainda não foi medido |
 
-### Crescimento e escalabilidade
 
-A API pode continuar sem estado e ser executada em múltiplas instâncias atrás de um balanceador. O PostgreSQL deve migrar para um serviço gerenciado com backups, métricas, alta disponibilidade e réplicas de leitura quando o volume justificar.
+## Evolução para produção
 
-Consultas mais frequentes podem receber cache após medição. Pesquisa textual em grande escala pode evoluir para full-text search com índices apropriados. Arquivos e anexos devem ser armazenados em object storage.
+A solução atende ao escopo do desafio e está preparada para avaliação local. Para operar em produção, seria necessário evoluir principalmente segurança, observabilidade, disponibilidade e integração com sistemas corporativos.
+As evoluções abaixo estão organizadas por responsabilidade e devem ser implementadas de forma incremental, orientadas pelo volume de uso, pelos requisitos de segurança e pelos níveis de serviço esperados.
 
-### Disponibilidade e manutenibilidade
+### Segurança e acesso
 
-- Health checks e readiness probes.
-- Logs estruturados com identificador de correlação.
-- Métricas, tracing distribuído e alertas.
-- Pipeline de CI com build, lint, testes e validação de migrations.
-- Migrations revisadas e aplicadas de forma controlada.
-- Documentação versionada dos contratos da API.
-- Testes de integração com PostgreSQL efêmero.
+A aplicação atual não possui autenticação nem autorização e deve ser utilizada apenas em ambiente local de avaliação. Antes de uma disponibilização em produção, o acesso precisa ser integrado ao provedor de identidade corporativo.
 
-### Segredos e configuração por ambiente
+A autenticação pode utilizar OIDC ou OAuth 2.0, permitindo login centralizado, aplicação das políticas corporativas e revogação de acesso. O backend deve validar a identidade em todas as rotas protegidas e não confiar apenas em controles implementados no frontend.
 
-As credenciais presentes no `.env.example` existem apenas para facilitar a avaliação local. Senhas reais não devem ser gravadas no `compose.yml`, em Dockerfiles, em argumentos de build, em variáveis `NEXT_PUBLIC_*` nem no histórico do Git.
+A autorização deve considerar, no mínimo:
 
-Em produção, `POSTGRES_PASSWORD` e `DATABASE_URL` devem ser fornecidas em tempo de execução por um gerenciador de segredos, como AWS Secrets Manager, Azure Key Vault, Google Secret Manager, HashiCorp Vault ou Secrets do Kubernetes. O acesso ao ambiente Docker também deve ser restrito, porque usuários com permissão para inspecionar containers podem visualizar suas variáveis de ambiente.
+- perfil ou função do usuário;
+- área à qual o usuário pertence;
+- operações permitidas para cada perfil;
+- propriedade ou visibilidade da solicitação;
+- separação entre quem solicita, analisa e decide.
 
-`NEXT_PUBLIC_API_URL`, `CORS_ORIGINS`, portas e nomes de host são configurações públicas, não segredos. Em especial, qualquer variável `NEXT_PUBLIC_*` é incorporada ao JavaScript enviado ao navegador.
+Além do histórico funcional da solicitação, operações sensíveis devem gerar registros de auditoria contendo usuário, ação, data, resultado e identificador de correlação. Esses registros não devem ser alteráveis pela interface da aplicação.
 
-### Principais riscos técnicos
+A proteção da infraestrutura deve incluir:
 
-- Consultas lentas conforme o volume aumenta.
-- Transições concorrentes sobre a mesma solicitação.
-- Mudanças de regra sem cobertura de regressão.
-- Perda de rastreabilidade por integrações externas mal projetadas.
-- Exposição indevida de dados sem autenticação e autorização.
-- Dependência de serviços externos durante operações síncronas.
+- HTTPS em todas as comunicações;
+- banco de dados sem exposição direta à internet;
+- CORS restrito às origens autorizadas;
+- limitação de requisições e proteção contra abuso;
+- cabeçalhos HTTP de segurança;
+- validação de tamanho e formato das entradas;
+- atualização e auditoria contínua de dependências e imagens.
 
-### Componentes futuros
+Credenciais e chaves não devem ser armazenadas no código, em Dockerfiles, em argumentos de build ou no histórico do Git. Em produção, segredos devem ser fornecidos em tempo de execução por um gerenciador apropriado e rotacionados periodicamente.
 
-- Autenticação corporativa via OIDC/OAuth 2.0.
-- Autorização por perfis e áreas.
-- Usuários, anexos, notificações e comentários adicionais.
-- Outbox transacional e worker de integração.
-- Fila de mensagens e dead-letter queue.
-- Documentação OpenAPI/Swagger.
+O seed com informações fictícias existe exclusivamente para facilitar a avaliação local. Ele não deve ser executado em ambientes de produção. 
 
-## Integração com sistema corporativo externo
+### Operação e escala
 
-A aprovação não deve chamar o sistema externo diretamente durante a requisição HTTP. Na mesma transação que aprova a solicitação, a aplicação gravaria um evento em uma tabela de outbox.
+A execução atual foi preparada para avaliação local com Docker Compose. Em produção, a aplicação precisaria evoluir para uma infraestrutura com maior disponibilidade, observabilidade e capacidade de recuperação.
 
-Um worker independente faria a publicação em uma fila, como RabbitMQ, SQS ou Kafka, e um consumidor executaria a integração externa. Isso evita que a indisponibilidade do sistema corporativo bloqueie a experiência do usuário.
+Como a API não mantém estado em memória entre requisições, o backend pode ser executado em múltiplas instâncias atrás de um balanceador de carga. O frontend também pode ser replicado ou distribuído por uma CDN, conforme a estratégia de hospedagem adotada.
 
-O fluxo incluiria:
+O PostgreSQL deveria ser executado em um serviço gerenciado ou ambiente equivalente, com:
 
+- backups automáticos e restauração testada;
+- recuperação para um ponto específico no tempo;
+- alta disponibilidade e replicação;
+- monitoramento de conexões, armazenamento e consultas lentas;
+- política definida de retenção e descarte de dados.
+
+A operação da aplicação deveria incluir:
+
+- logs estruturados em formato pesquisável;
+- identificador de correlação propagado entre requisições e serviços;
+- métricas técnicas e de negócio;
+- tracing distribuído para fluxos entre serviços;
+- health checks de execução;
+- readiness probes para controlar o recebimento de tráfego;
+- alertas baseados em disponibilidade, latência e taxa de erros;
+- definição de objetivos de nível de serviço.
+
+As migrations devem ser aplicadas de forma controlada e compatível com versões anteriores da aplicação. Em alterações maiores, a evolução do banco deve ser dividida em etapas para permitir implantação gradual e rollback seguro.
+
+O aumento de capacidade deve ser orientado por métricas. Antes de introduzir cache, réplicas de leitura ou mecanismos externos de busca, é necessário medir volume, latência e padrões de consulta.
+
+Caso a pesquisa textual simples deixe de atender ao volume esperado, ela pode evoluir para full-text search do PostgreSQL. Uma ferramenta dedicada de busca deve ser considerada somente quando os requisitos justificarem sua complexidade operacional.
+
+Testes de carga, recuperação de desastre e falhas de infraestrutura devem fazer parte da preparação para produção, permitindo definir limites seguros e validar os procedimentos operacionais.
+
+### Integração com sistema corporativo
+
+A integração externa não faz parte da implementação atual. Em produção, uma solicitação aprovada poderia originar um processo em outro sistema corporativo.
+
+Essa comunicação não deveria ocorrer diretamente durante a alguma das requisição HTTP, seja de aprovação ou de rejeição. A disponibilidade e o tempo de resposta do sistema externo não podem bloquear a decisão registrada na aplicação.
+
+O fluxo recomendado utiliza o padrão de outbox transacional:
+
+```mermaid
+flowchart LR
+    A[Aprovação da solicitação] --> T[Transação no PostgreSQL]
+    T --> S[Atualiza solicitação]
+    T --> H[Registra histórico]
+    T --> O[Grava evento na outbox]
+    O --> W[Worker]
+    W --> F[Fila de mensagens]
+    F --> C[Consumidor]
+    C --> E[Sistema corporativo]
+```
+
+A solicitação, o histórico e o evento da outbox seriam gravados na mesma transação. Dessa forma, uma aprovação confirmada sempre possuiria um evento correspondente para integração.
+
+O processamento externo incluiria:
+
+- chave de idempotência baseada no identificador do evento;
 - timeout nas chamadas externas;
-- retry com backoff exponencial;
-- circuit breaker;
-- dead-letter queue após o limite de tentativas;
-- chave de idempotência baseada no evento;
-- identificador de correlação em logs e mensagens;
-- armazenamento de cada tentativa e resultado;
-- monitoramento e alertas para falhas persistentes.
+- retry com backoff exponencial e limite de tentativas;
+- circuit breaker para falhas persistentes;
+- dead-letter queue para mensagens que não puderam ser processadas;
+- identificador de correlação entre solicitação, evento e chamada externa;
+- registro das tentativas, respostas e erros;
+- métricas e alertas para eventos pendentes ou com falha.
 
-O frontend poderia apresentar separadamente o status da solicitação e o status da integração.
+O status da solicitação e o status da integração devem ser independentes. Uma solicitação pode estar `APROVADA` enquanto sua integração permanece `PENDENTE`, `PROCESSANDO`, `CONCLUIDA` ou `FALHOU`.
 
-## Escopo pendente e limitações
+Essa separação preserva a decisão de negócio, permite reprocessamento seguro e evita que indisponibilidades externas prejudiquem a experiência do usuário.
 
-- Autenticação e autorização ainda não foram implementadas.
-- A integração externa está documentada, mas não implementada.
-- Logs estruturados e observabilidade completa são evoluções futuras.
-- Não há anexos nem notificações.
-- A suíte de integração cobre os fluxos críticos com PostgreSQL real, mas ainda não representa testes de carga ou recuperação de desastre.
-- O frontend possui testes de componentes para formulários, imutabilidade e decisão; ainda não inclui automação E2E em navegador real.
+## Uso de inteligência artificial
 
-Esses itens não impedem a avaliação do protótipo, mas devem ser considerados antes de uma utilização em produção.
+ChatGPT/Codex foi utilizado como apoio de pair programming durante o desenvolvimento para:
 
-## Encerramento
+- gerar e revisar código;
+- ampliar cenários de teste;
+- diagnosticar falhas;
+- revisar segurança, execução em containers e documentação.
 
-Para interromper o PostgreSQL sem apagar os dados:
-
-```powershell
-docker compose down
-```
-
-O comando abaixo também remove o volume e apaga os dados locais; use somente quando essa for a intenção:
-
-```powershell
-docker compose down -v
-```
+As decisões finais permaneceram sob minha responsabilidade. As sugestões foram revisadas e validadas com lint, verificação de tipos, testes, build e smoke test do ambiente Docker.

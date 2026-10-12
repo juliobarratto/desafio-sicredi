@@ -285,18 +285,14 @@ export class SolicitacoesService {
 
   async excluir(idSolicitacao: number) {
     return this.prisma.$transaction(async (tx) => {
-      const solicitacao = await tx.solicitacao.findUnique({
-        where: { idSolicitacao },
+      const solicitacao = await tx.solicitacao.findFirst({
+        where: { idSolicitacao, dataExclusao: null },
       });
 
       if (!solicitacao) {
         throw new NotFoundException(
           `Solicitação com ID ${idSolicitacao} não encontrada.`,
         );
-      }
-
-      if (solicitacao.dataExclusao) {
-        return;
       }
 
       const resultado = await tx.solicitacao.updateMany({
@@ -313,8 +309,10 @@ export class SolicitacoesService {
           where: { idSolicitacao },
         });
 
-        if (solicitacaoAtual?.dataExclusao) {
-          return;
+        if (!solicitacaoAtual || solicitacaoAtual.dataExclusao) {
+          throw new NotFoundException(
+            `Solicitação com ID ${idSolicitacao} não encontrada.`,
+          );
         }
 
         throw new ConflictException(

@@ -1,0 +1,6 @@
+-- AlterEnum
+ALTER TYPE "TipoEvento" RENAME VALUE 'ALERACAO_STATUS' TO 'ALTERACAO_STATUS';
+
+-- AlterTable
+ALTER TABLE "solicitacao"
+ALTER COLUMN "area_solicitante" TYPE VARCHAR(100);

@@ -1,4 +1,4 @@
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 
 WORKDIR /app
 
@@ -18,9 +18,9 @@ CMD ["npx", "prisma", "migrate", "deploy"]
 
 FROM build AS production-dependencies
 
-RUN npm prune --omit=dev
+RUN npm prune --omit=dev --omit=optional
 
-FROM node:22-alpine AS runner
+FROM node:24-alpine AS runner
 
 WORKDIR /app
 

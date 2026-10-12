@@ -153,6 +153,21 @@ describe("API (e2e)", () => {
     expect(solicitacoesService.criar).not.toHaveBeenCalled();
   });
 
+  it("rejeita área solicitante acima do limite do modelo lógico", async () => {
+    await request(app.getHttpServer())
+      .post("/solicitacoes")
+      .send({
+        titulo: "Nova rede",
+        descricao: "Renovação da rede interna.",
+        solicitante: "Julio",
+        areaSolicitante: "A".repeat(101),
+        prioridade: Prioridade.ALTA,
+      })
+      .expect(400);
+
+    expect(solicitacoesService.criar).not.toHaveBeenCalled();
+  });
+
   it("rejeita ID que não seja inteiro", async () => {
     await request(app.getHttpServer()).get("/solicitacoes/abc").expect(400);
     expect(solicitacoesService.buscarPorId).not.toHaveBeenCalled();

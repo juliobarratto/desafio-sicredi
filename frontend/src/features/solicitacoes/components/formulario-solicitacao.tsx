@@ -214,7 +214,7 @@ export function FormularioSolicitacao(props: FormularioSolicitacaoProps) {
             name="areaSolicitante"
             defaultValue={solicitacao?.areaSolicitante}
             required
-            maxLength={150}
+            maxLength={100}
             placeholder="Ex.: Tecnologia"
             aria-invalid={Boolean(errosCampos.areaSolicitante)}
             aria-describedby={

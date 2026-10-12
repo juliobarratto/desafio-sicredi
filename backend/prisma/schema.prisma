@@ -23,7 +23,7 @@ enum Status {
 
 enum TipoEvento {
   CRIACAO
-  ALTERACAO_STATUS @map("ALERACAO_STATUS")
+  ALTERACAO_STATUS
   EXCLUSAO
 }
 
@@ -32,7 +32,7 @@ model Solicitacao {
   titulo          String     @db.VarChar(150)
   descricao       String     @db.Text
   solicitante     String     @db.VarChar(150)
-  areaSolicitante String     @map("area_solicitante") @db.VarChar(150)
+  areaSolicitante String     @map("area_solicitante") @db.VarChar(100)
   prioridade      Prioridade
   status          Status     @default(ABERTA)
   dataSolicitacao DateTime   @default(now()) @map("data_solicitacao")
@@ -40,6 +40,9 @@ model Solicitacao {
 
   historicos HistoricoSolicitacao[]
 
+  @@index([dataExclusao, dataSolicitacao, idSolicitacao])
+  @@index([dataExclusao, status])
+  @@index([dataExclusao, prioridade])
   @@map("solicitacao")
 }
 

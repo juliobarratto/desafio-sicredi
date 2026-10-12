@@ -336,7 +336,7 @@ describe("SolicitacoesService", () => {
   });
 
   it("faz exclusão lógica e registra o histórico na mesma transação", async () => {
-    tx.solicitacao.findUnique.mockResolvedValue({
+    tx.solicitacao.findFirst.mockResolvedValue({
       idSolicitacao: 1,
       status: Status.EM_ANALISE,
       dataExclusao: null,
@@ -362,14 +362,10 @@ describe("SolicitacoesService", () => {
     });
   });
 
-  it("trata exclusão repetida como idempotente sem duplicar histórico", async () => {
-    tx.solicitacao.findUnique.mockResolvedValue({
-      idSolicitacao: 1,
-      status: Status.EM_ANALISE,
-      dataExclusao: new Date(),
-    });
+  it("retorna não encontrado ao repetir a exclusão", async () => {
+    tx.solicitacao.findFirst.mockResolvedValue(null);
 
-    await expect(service.excluir(1)).resolves.toBeUndefined();
+    await expect(service.excluir(1)).rejects.toBeInstanceOf(NotFoundException);
     expect(tx.solicitacao.updateMany).not.toHaveBeenCalled();
     expect(tx.historicoSolicitacao.create).not.toHaveBeenCalled();
   });

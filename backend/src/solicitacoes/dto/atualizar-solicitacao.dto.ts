@@ -34,7 +34,7 @@ export class AtualizarSolicitacaoDto {
   @IsOptional()
   @IsString()
   @IsNotEmpty()
-  @MaxLength(150)
+  @MaxLength(100)
   @Transform(normalizarTexto)
   areaSolicitante?: string;
 
