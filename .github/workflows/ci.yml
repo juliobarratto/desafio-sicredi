@@ -17,8 +17,8 @@ jobs:
       PORT: 3000
       CORS_ORIGINS: http://localhost:3001
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -39,8 +39,8 @@ jobs:
     env:
       NEXT_PUBLIC_API_URL: http://localhost:3000
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -77,8 +77,8 @@ jobs:
       PORT: 3000
       CORS_ORIGINS: http://localhost:3001
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -95,7 +95,7 @@ jobs:
       POSTGRES_PASSWORD: sicredi
       POSTGRES_DB: sicredi
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: cp .env.example .env
       - run: docker compose config --quiet
       - run: docker compose build
